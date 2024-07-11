@@ -1,5 +1,5 @@
 {
-  "name": "@data-test-id-extractor/source",
+  "name": "@cubersport12/html-test-id-extractor",
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
@@ -9,7 +9,6 @@
   },
   "private": true,
   "dependencies": {
-    "axios": "^1.0.0",
     "commander": "^12.1.0",
     "glob": "11.0.0",
     "lodash.camelcase": "^4.3.0",
