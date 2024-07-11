@@ -9,10 +9,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ../../data-test-id-extractor
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
         with:
           node-version: 20
-      - run: npm --prefix ../../data-test-id-extractor ci
-      - run: npm run --prefix ../../data-test-id-extractor build
+      - run: npm ci
+      - run: npm run build
