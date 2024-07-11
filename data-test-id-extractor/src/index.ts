@@ -1,6 +1,6 @@
 import { globSync } from 'glob';
 import { dirname, join, relative } from 'path';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { NodeType, parse } from 'node-html-parser';
 import { program } from 'commander';
 import * as ts from 'typescript';
@@ -14,23 +14,30 @@ program.parse(process.argv);
 
 const createEnumDeclaration = (enumName: string, enumValues: string[]) => {
   // Create members for the enum declaration
-  const members = enumValues.map(value => {
-      return ts.factory.createEnumMember(upperFirst(value), ts.factory.createStringLiteral(value));
+  const members = enumValues.map((value) => {
+    return ts.factory.createEnumMember(
+      upperFirst(value),
+      ts.factory.createStringLiteral(value)
+    );
   });
 
   // Create the EnumDeclaration node
   const enumDeclaration = ts.factory.createEnumDeclaration(
-      [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
-      ts.factory.createIdentifier(enumName),
-      members
+    [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
+    ts.factory.createIdentifier(enumName),
+    members
   );
 
   return enumDeclaration;
-}
+};
+
+const getPath = (path: string): string => {
+  const dname = dirname(require.main?.filename ?? '');
+  return join(dname, relative(dname, path));
+};
 
 const generate = (options: { inputFolder: string; outputFileName: string }) => {
-  const dname = dirname(require.main?.filename ?? '');
-  const rootFolder = join(dname, relative(dname, options.inputFolder));
+  const rootFolder = getPath(options.inputFolder);
   const files = globSync(`${rootFolder}/**/*.html`);
   const attributeName = 'data-testid';
   const attributes = new Set<string>();
@@ -46,14 +53,27 @@ const generate = (options: { inputFolder: string; outputFileName: string }) => {
       }
     });
   });
-  
 
-
+  const outPath = getPath(options.outputFileName);
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-  const enumDeclaration = createEnumDeclaration('MirDataTestIds', Array.from(attributes));
-  const tsFile = ts.createSourceFile(options.outputFileName, '', ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
-  const result = printer.printNode(ts.EmitHint.Unspecified, enumDeclaration, tsFile);
-  console.log(result);
+  const enumDeclaration = createEnumDeclaration(
+    'MirDataTestIds',
+    Array.from(attributes)
+  );
+  const tsFile = ts.createSourceFile(
+    outPath,
+    '',
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.TS
+  );
+  const result = printer.printNode(
+    ts.EmitHint.Unspecified,
+    enumDeclaration,
+    tsFile
+  );
+  console.info('Generated enum:', outPath);
+  writeFileSync(outPath, result, { encoding: 'utf-8' });
 };
 
 const options = program.opts();
