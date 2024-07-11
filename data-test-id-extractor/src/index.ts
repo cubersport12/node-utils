@@ -5,6 +5,7 @@ import { NodeType, parse } from 'node-html-parser';
 import { program } from 'commander';
 import * as ts from 'typescript';
 import upperFirst from 'lodash.upperfirst';
+import camelCase from 'lodash.camelcase';
 
 program
   .option('--input <input>', 'Input folder path')
@@ -16,7 +17,7 @@ const createEnumDeclaration = (enumName: string, enumValues: string[]) => {
   // Create members for the enum declaration
   const members = enumValues.map((value) => {
     return ts.factory.createEnumMember(
-      upperFirst(value),
+      upperFirst(camelCase(value)),
       ts.factory.createStringLiteral(value)
     );
   });
