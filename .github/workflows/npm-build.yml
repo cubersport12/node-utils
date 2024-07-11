@@ -17,5 +17,5 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 20
-      - run: npm ci --legacy-peer-deps
+      - run: npm i --legacy-peer-deps
       - run: npm run build
