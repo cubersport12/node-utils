@@ -62,7 +62,7 @@ export class HtmlHandler implements FileHandler {
     const result = this._visit(rootElement);
     const changes = result.map(x => this._replace(x)).flat();
     if (changes?.length) {
-      const source = defineByTemplateUrl(file, getAlias(options.file));
+      const source = defineByTemplateUrl(file, options.file);
       const printer = ts.createPrinter();
       const result = printer.printNode(ts.EmitHint.Unspecified, source, ts.createSourceFile('temp.ts', '', ts.ScriptTarget.Latest));
       console.info(result);

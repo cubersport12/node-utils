@@ -110,7 +110,7 @@ export const hasImport = (source: ts.SourceFile) => {
     );
 };
 
-export const insertImport = (source: ts.SourceFile, alias: string | null) => {
+export const insertImport = (source: ts.SourceFile, alias: string) => {
   if (hasImport(source)) {
     return source;
   }
@@ -131,25 +131,28 @@ export const insertImport = (source: ts.SourceFile, alias: string | null) => {
           ],
         ),
       ),
-      ts.factory.createStringLiteral(kebabCase(ENUM_NAME), true),
+      ts.factory.createStringLiteral(normalize(alias).replace(/\\/g, '/'), true),
     ),
     ...source.statements,
   ]);
 };
 
-export const defineByTemplateUrl = (file: string, alias: string | null): ts.SourceFile => {
+export const defineByTemplateUrl = (file: string, toFile: string): ts.SourceFile => {
+  const alias = getAlias(toFile);
   const tsFile = getTsFileByTemplateUrl(file);
   let source = parseTsFile(tsFile);
   const klass = findComponentClass(source);
   if (klass == null) {
     throw new Error();
   }
+
+  const pathToImport = alias == null ? relative(file, toFile) : alias;
   const updatedClass = defineEnumInClass(klass);
   source = ts.factory.updateSourceFile(source, [
     ...source.statements.filter(x => !(ts.isClassDeclaration(x) && x.name?.getText() === updatedClass.name?.getText())),
     updatedClass,
   ]);
-  return insertImport(source, alias);
+  return insertImport(source, pathToImport);
 };
 
 export const getAlias = (path: string) => {
