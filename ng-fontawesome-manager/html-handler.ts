@@ -1,7 +1,6 @@
 import {
   defineFieldInInjectableClass,
-  STORAGE_NAME,
-  FileHandler, FONTAWESOME_ICON_PREFIX,
+  FileHandler,
   FONTAWESOME_TYPE_PREFIX,
   getMemberNameFromIcon,
   getFontAwesomeIconName, getTsFileByTemplateUrl,
@@ -94,7 +93,9 @@ export class HtmlHandler implements FileHandler {
 
   handle(file: string, options: Options): void {
     const fileText = readFileSync(file, { encoding: 'utf-8' });
-    const rootElement = parse(fileText);
+    const rootElement = parse(fileText, { voidTag: {
+      tags: ['*ngIf', '*ngTemplateOutlet', '*ngSwitchCase', '*cdkVirtualFor', '*ngFor', '[@indicatorRotate]', '[@indicatorRotate90]'],
+    } });
     const result = this._findElementsWhereHasFa(rootElement, file);
     const changes = this._replace(result);
     if (changes?.size) {

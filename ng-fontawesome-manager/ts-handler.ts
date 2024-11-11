@@ -8,7 +8,7 @@ import {
   Options,
   parseTsFile, saveTsFile, updateIconsInTsFile,
 } from './utils';
-import ts from 'typescript';
+import ts, { ScriptKind } from 'typescript';
 
 export class TsHandler implements FileHandler {
   handle(file: string, options: Options): void {
@@ -21,22 +21,27 @@ export class TsHandler implements FileHandler {
         const txt = decorator?.getText();
         const icons = new Set<string>();
         if (txt?.includes('Component') || txt?.includes('Injectable')) {
-          const printer = ts.createPrinter();
-          let result = printer.printNode(ts.EmitHint.Unspecified, sourceFile, ts.createSourceFile('print.ts', '', ts.ScriptTarget.Latest));
+          let result = sourceFile.getText();
           let hasChanges = false;
-          result.split(/('*')/gm).forEach((str) => {
-            if (hasFontAwesome(str)) {
-              const r = RegExp(String.raw`'${str}'`, 'g');
-              const icon = str.replace(FONTAWESOME_TYPE_PREFIX, '').trim();
-              result = result.replace(r, `this.${FIELD_ICONS_NAME}.${getMemberNameFromIcon(icon)}`);
-              hasChanges = true;
-              icons.add(icon);
+          try {
+            result.split(/('far fa-.*')/gm).forEach((str) => {
+              if (hasFontAwesome(str)) {
+                const r = RegExp(String.raw`${str}`, 'g');
+                const icon = str.replace(FONTAWESOME_TYPE_PREFIX, '').trim();
+                result = result.replace(r, `this.${FIELD_ICONS_NAME}.${getMemberNameFromIcon(icon)}`);
+                hasChanges = true;
+                icons.add(icon.replace('\'', '').trim());
+              }
+            });
+            if (hasChanges) {
+              const newFile = ts.createSourceFile(file, result, ts.ScriptTarget.Latest, true, ScriptKind.TS);
+              const updateFile = defineFieldInInjectableClass(newFile, options);
+              updateIconsInTsFile(options.file, Array.from(icons));
+              saveTsFile(updateFile, file);
             }
-          });
-          if (hasChanges) {
-            defineFieldInInjectableClass(file, options);
-            updateIconsInTsFile(options.file, Array.from(icons));
-            saveTsFile(sourceFile, options.file);
+          }
+          catch (e) {
+            console.error(`\r\n${file}:1:1\r\n${String(e)}`);
           }
         }
       }

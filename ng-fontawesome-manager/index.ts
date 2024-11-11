@@ -4,8 +4,7 @@ import { existsSync } from 'node:fs';
 import { globSync } from 'glob';
 import { HtmlHandler } from './html-handler';
 import { TsHandler } from './ts-handler';
-import { Options, updateIconsInTsFile } from './utils';
-import { Presets, SingleBar } from 'cli-progress';
+import { Options } from './utils';
 import * as process from 'node:process';
 
 program
@@ -30,7 +29,7 @@ if (!existsSync(options.file)) {
 
 files.forEach((file) => {
   if (isHtml(file)) {
-    // htmlHandler.handle(file, options);
+    htmlHandler.handle(file, options);
   }
 
   if (isTs(file)) {

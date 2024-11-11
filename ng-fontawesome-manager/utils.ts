@@ -98,8 +98,8 @@ export const defineFieldInClass = (classDeclaration: ts.ClassDeclaration) => {
     ts.factory.createIdentifier(`inject(${STORAGE_NAME})`),
   );
   const updatedMember = ts.factory.createNodeArray([
-    ...classDeclaration?.members ?? [],
     property,
+    ...classDeclaration?.members ?? [],
   ]);
   return ts.factory.updateClassDeclaration(classDeclaration,
     classDeclaration?.modifiers, classDeclaration?.name, classDeclaration?.typeParameters, classDeclaration?.heritageClauses, updatedMember,
@@ -189,7 +189,7 @@ export const insertImport = (source: ts.SourceFile, importPath: string) => {
   return ts.factory.updateSourceFile(source, statements);
 };
 
-export const defineFieldInInjectableClass = (file: string, { file: toFile, alias: a }: Options): ts.SourceFile => {
+export const defineFieldInInjectableClass = (file: string | ts.SourceFile, { file: toFile, alias: a }: Options): ts.SourceFile => {
   const TRUE = 'true';
   const FALSE = 'false';
   let alias: string | null = null;
@@ -203,8 +203,16 @@ export const defineFieldInInjectableClass = (file: string, { file: toFile, alias
       alias = String(a);
     }
   }
-  const tsFile = getTsFileByTemplateUrl(file);
-  let source = parseTsFile(tsFile);
+  let source: ts.SourceFile | undefined;
+  let tsFile: string | undefined;
+  if (typeof file === 'string') {
+    tsFile = getTsFileByTemplateUrl(file);
+    source = parseTsFile(tsFile);
+  }
+  else {
+    source = file;
+    tsFile = getTsFileByTemplateUrl(file.fileName);
+  }
   const klass = findComponentClass(source);
   if (klass == null) {
     throw new Error();
