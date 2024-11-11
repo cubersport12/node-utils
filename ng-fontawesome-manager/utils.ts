@@ -1,14 +1,16 @@
-import * as ts from 'typescript';
-import { readFileSync, existsSync } from 'node:fs';
-import { extname, relative, dirname, join, normalize } from 'node:path';
+import ts from 'typescript';
+import { readFileSync, existsSync, writeFileSync } from 'node:fs';
+import { extname, relative, dirname, join, normalize, basename } from 'node:path';
 import { ScriptKind } from 'typescript';
-import { kebabCase } from 'lodash';
 import { globSync } from 'glob';
+import { camelCase } from 'lodash';
 
+let alias: string | undefined | null = undefined;
 export type Options = {
   root: string;
   extensions: string;
   file: string;
+  alias: boolean | string;
 };
 export interface FileHandler {
   handle(file: string, options: Options): void;
@@ -16,13 +18,14 @@ export interface FileHandler {
 
 export const FONTAWESOME_ICON_PREFIX = 'fa-';
 export const FONTAWESOME_TYPE_PREFIX = 'far';
-export const ENUM_NAME = 'AppIcons';
+export const STORAGE_NAME = 'MirIcons';
+export const FIELD_ICONS_NAME = 'icons';
 
 export const isFontAwesomeValue = (v: string) => v === FONTAWESOME_TYPE_PREFIX || v.startsWith(FONTAWESOME_ICON_PREFIX);
 export const hasFontAwesome = (v: string) => v.includes(FONTAWESOME_ICON_PREFIX);
 export const getFontAwesomeIconName = (v: string) => {
   const a = v.split(' ');
-  return a.find(x => x.startsWith(FONTAWESOME_ICON_PREFIX));
+  return a.filter(x => x.startsWith(FONTAWESOME_ICON_PREFIX)).join(' ').replace(/'/g, '');
 };
 
 export const parseTsFile = (file: string) => {
@@ -83,16 +86,16 @@ export const findComponentClass = (source: ts.SourceFile): ts.ClassDeclaration |
   return klass;
 };
 
-export const defineEnumInClass = (classDeclaration: ts.ClassDeclaration) => {
+export const defineFieldInClass = (classDeclaration: ts.ClassDeclaration) => {
   if (classDeclaration == null) {
     throw new Error();
   }
   const property = ts.factory.createPropertyDeclaration(
     [ts.factory.createToken(ts.SyntaxKind.ProtectedKeyword), ts.factory.createToken(ts.SyntaxKind.ReadonlyKeyword)],
-    ts.factory.createIdentifier(ENUM_NAME),
+    ts.factory.createIdentifier(FIELD_ICONS_NAME),
     undefined,
     undefined,
-    ts.factory.createIdentifier(ENUM_NAME),
+    ts.factory.createIdentifier(`inject(${STORAGE_NAME})`),
   );
   const updatedMember = ts.factory.createNodeArray([
     ...classDeclaration?.members ?? [],
@@ -106,39 +109,100 @@ export const defineEnumInClass = (classDeclaration: ts.ClassDeclaration) => {
 export const hasImport = (source: ts.SourceFile) => {
   return source.statements
     .some(s => ts.isImportDeclaration(s)
-      && (s.moduleSpecifier as ts.StringLiteral).text === ENUM_NAME,
+      && (s.moduleSpecifier as ts.StringLiteral).text === STORAGE_NAME,
     );
 };
 
-export const insertImport = (source: ts.SourceFile, alias: string) => {
+export const insertImport = (source: ts.SourceFile, importPath: string) => {
   if (hasImport(source)) {
     return source;
   }
-
-  return ts.factory.updateSourceFile(source, [
-    ts.factory.createImportDeclaration(
-      undefined,
-      ts.factory.createImportClause(
-        false,
+  const iName = normalize(importPath)
+    .replace(/\\/g, '/').replace('.ts', '');
+  let statements = [...source.statements];
+  let foundIcons = false;
+  let foundInject = false;
+  source.forEachChild((node) => {
+    if (ts.isImportDeclaration(node)) {
+      node.forEachChild((n) => {
+        if (ts.isImportClause(n)) {
+          n.forEachChild((c) => {
+            if (ts.isNamedImports(c)) {
+              const name = c.getText();
+              if (name.includes(STORAGE_NAME)) {
+                foundIcons = true;
+              }
+              if (name.includes('inject')) {
+                foundInject = true;
+              }
+            }
+          });
+        }
+      });
+    }
+  });
+  if (!foundIcons) {
+    statements = [
+      ts.factory.createImportDeclaration(
         undefined,
-        ts.factory.createNamedImports(
-          [
-            ts.factory.createImportSpecifier(
-              false,
-              undefined,
-              ts.factory.createIdentifier(ENUM_NAME),
-            ),
-          ],
+        ts.factory.createImportClause(
+          false,
+          undefined,
+          ts.factory.createNamedImports(
+            [
+              ts.factory.createImportSpecifier(
+                false,
+                undefined,
+                ts.factory.createIdentifier(STORAGE_NAME),
+              ),
+            ],
+          ),
         ),
+        ts.factory.createStringLiteral(iName, true),
       ),
-      ts.factory.createStringLiteral(normalize(alias).replace(/\\/g, '/'), true),
-    ),
-    ...source.statements,
-  ]);
+      ...statements,
+    ];
+  }
+  if (!foundInject) {
+    statements = [
+      ts.factory.createImportDeclaration(
+        undefined,
+        ts.factory.createImportClause(
+          false,
+          undefined,
+          ts.factory.createNamedImports(
+            [
+              ts.factory.createImportSpecifier(
+                false,
+                undefined,
+                ts.factory.createIdentifier('inject'),
+              ),
+            ],
+          ),
+        ),
+        ts.factory.createStringLiteral('@angular/core', true),
+      ),
+      ...statements,
+    ];
+  }
+
+  return ts.factory.updateSourceFile(source, statements);
 };
 
-export const defineByTemplateUrl = (file: string, toFile: string): ts.SourceFile => {
-  const alias = getAlias(toFile);
+export const defineFieldInInjectableClass = (file: string, { file: toFile, alias: a }: Options): ts.SourceFile => {
+  const TRUE = 'true';
+  const FALSE = 'false';
+  let alias: string | null = null;
+  if (a != null) {
+    if (a === TRUE || a === FALSE) {
+      if (a === TRUE) {
+        alias = getAlias(toFile);
+      }
+    }
+    else {
+      alias = String(a);
+    }
+  }
   const tsFile = getTsFileByTemplateUrl(file);
   let source = parseTsFile(tsFile);
   const klass = findComponentClass(source);
@@ -146,8 +210,8 @@ export const defineByTemplateUrl = (file: string, toFile: string): ts.SourceFile
     throw new Error();
   }
 
-  const pathToImport = alias == null ? relative(file, toFile) : alias;
-  const updatedClass = defineEnumInClass(klass);
+  const pathToImport = alias == null ? relative(dirname(tsFile), toFile) : alias;
+  const updatedClass = defineFieldInClass(klass);
   source = ts.factory.updateSourceFile(source, [
     ...source.statements.filter(x => !(ts.isClassDeclaration(x) && x.name?.getText() === updatedClass.name?.getText())),
     updatedClass,
@@ -156,6 +220,9 @@ export const defineByTemplateUrl = (file: string, toFile: string): ts.SourceFile
 };
 
 export const getAlias = (path: string) => {
+  if (alias !== undefined) {
+    return alias;
+  }
   // eslint-disable-next-line @typescript-eslint/unbound-method
   const pathToTsConfig = ts.findConfigFile(path, ts.sys.fileExists);
   if (pathToTsConfig?.length) {
@@ -186,7 +253,61 @@ export const getAlias = (path: string) => {
           a = alias;
         }
       });
-    return a;
+    alias = a ?? null;
+    return alias;
   }
   return null;
+};
+
+export const updateIconsInTsFile = (to: string, icons: string[]) => {
+  const file = parseTsFile(to);
+  let classDecl: ts.ClassDeclaration | undefined = undefined;
+  file.forEachChild((node) => {
+    if (ts.isClassDeclaration(node)) {
+      classDecl = node;
+    }
+  });
+  if (classDecl == null) {
+    classDecl = ts.factory.createClassDeclaration(
+      [ts.factory.createModifier(ts.SyntaxKind.ExportKeyword)],
+      STORAGE_NAME,
+      undefined,
+      undefined,
+      [],
+    );
+  }
+  const excludeIconsForPrefix = 'fa-spin';
+  const members = [
+    ...classDecl.members.filter(x => ts.isPropertyDeclaration(x) && !icons.some(i => getMemberNameFromIcon(i) === getMemberNameFromIcon(x.name.getText()))),
+    ...icons.map(x => ts.factory.createPropertyDeclaration(
+      [ts.factory.createModifier(ts.SyntaxKind.PublicKeyword)],
+      getMemberNameFromIcon(x),
+      undefined,
+      ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+      ts.factory.createStringLiteral(`${excludeIconsForPrefix.includes(x) ? '' : `${FONTAWESOME_TYPE_PREFIX} `}${x}`, true))),
+  ];
+
+  // icons.map(x => ts.factory.createEnumMember(kebabCase(x), ts.factory.createStringLiteral(x, true)))
+  classDecl = ts.factory.updateClassDeclaration(classDecl, classDecl.modifiers, classDecl.name, classDecl.typeParameters, classDecl.heritageClauses, members);
+  const updatedFile = ts.factory.updateSourceFile(file,
+    [...file.statements.filter(x => !(ts.isClassDeclaration(x) && x.name?.getText() === STORAGE_NAME)), classDecl],
+  );
+
+  saveTsFile(updatedFile, to);
+};
+
+export const saveTsFile = (source: ts.SourceFile, to: string) => {
+  const printer = ts.createPrinter();
+  const result = printer.printNode(ts.EmitHint.Unspecified, source, ts.createSourceFile(basename(to), '', ts.ScriptTarget.Latest));
+  writeFileSync(to, result, { encoding: 'utf-8' });
+};
+
+export const getMemberNameFromIcon = (icon: string) => camelCase(icon
+  .replace(/fa-/g, '')
+  .split(' ').join('-'));
+
+export const printSourceFile = (source: ts.SourceFile) => {
+  const printer = ts.createPrinter();
+  const result = printer.printNode(ts.EmitHint.Unspecified, source, ts.createSourceFile('print.ts', '', ts.ScriptTarget.Latest));
+  console.info(result);
 };
