@@ -40,6 +40,7 @@ export class HtmlHandler implements FileHandler {
     const newAttrValue: string[] = [];
 
     const icons: string[] = [];
+    console.info(value, value.split(/ (?=(?:[^']*'[^']*')*[^']*$)/));
     value.split(/ (?=(?:[^']*'[^']*')*[^']*$)/)
       .filter(x => x !== FONTAWESOME_TYPE_PREFIX)
       .forEach((part) => {
@@ -51,7 +52,10 @@ export class HtmlHandler implements FileHandler {
           const camel = getMemberNameFromIcon(icon);
           const bindingName = `${FIELD_ICONS_NAME}.${camel}`;
           if (part.includes('\'') || part.includes('"')) {
-            if (part.split(' ').length > 2) {
+            const attrName = part.split('=')[0];
+
+            if (attrName.startsWith('[') && attrName.endsWith(']')) {
+              // "_isLoadingExport() ? 'far fa-spinner fa-spin' : 'far fa-file-excel'" - generate regexp string parse far fa- value from string
               throw new Error();
             }
             newAttrValue.push(bindingName);

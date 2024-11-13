@@ -20,7 +20,7 @@ export class TsHandler implements FileHandler {
 
         const txt = decorator?.getText();
         const icons = new Set<string>();
-        if (txt?.includes('Component') || txt?.includes('Injectable')) {
+        if (txt?.includes('Component') || txt?.includes('Injectable') || txt?.includes('Pipe') || txt?.includes('Directive')) {
           let result = sourceFile.getText();
           let hasChanges = false;
           try {
