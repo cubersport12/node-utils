@@ -90,6 +90,18 @@ export const defineFieldInClass = (classDeclaration: ts.ClassDeclaration) => {
   if (classDeclaration == null) {
     throw new Error();
   }
+  let isExistsField = false;
+  classDeclaration.forEachChild((node) => {
+    if (isExistsField) {
+      return;
+    }
+    if (ts.isPropertyDeclaration(node) && node.name.getText() === FIELD_ICONS_NAME) {
+      isExistsField = true;
+    }
+  });
+  if (isExistsField) {
+    return classDeclaration;
+  }
   const property = ts.factory.createPropertyDeclaration(
     [ts.factory.createToken(ts.SyntaxKind.ProtectedKeyword), ts.factory.createToken(ts.SyntaxKind.ReadonlyKeyword)],
     ts.factory.createIdentifier(FIELD_ICONS_NAME),
