@@ -2,7 +2,7 @@ import {
   defineFieldInInjectableClass,
   FIELD_ICONS_NAME,
   FileHandler,
-  FONTAWESOME_ICON_PREFIX, FONTAWESOME_TYPE_PREFIX,
+  FONTAWESOME_TYPE_PREFIX,
   getMemberNameFromIcon,
   hasFontAwesome,
   Options,

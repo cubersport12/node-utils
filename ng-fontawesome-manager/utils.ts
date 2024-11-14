@@ -6,21 +6,29 @@ import { globSync } from 'glob';
 import { camelCase } from 'lodash';
 
 let alias: string | undefined | null = undefined;
+
 export type Options = {
   root: string;
   extensions: string;
   file: string;
   alias: boolean | string;
+  command: CommandType;
 };
 export interface FileHandler {
   handle(file: string, options: Options): void;
 }
 
+export enum CommandType {
+  Migrate = 'migrate',
+  ExtractFromCss = 'extract-css',
+}
 export const FONTAWESOME_ICON_PREFIX = 'fa-';
 export const FONTAWESOME_TYPE_PREFIX = 'far';
 export const STORAGE_NAME = 'MirIcons';
 export const FIELD_ICONS_NAME = 'icons';
 
+export const isHtml = (file: string) => extname(file) === '.html';
+export const isTs = (file: string) => extname(file) === '.ts';
 export const isFontAwesomeValue = (v: string) => v === FONTAWESOME_TYPE_PREFIX || v.startsWith(FONTAWESOME_ICON_PREFIX);
 export const hasFontAwesome = (v: string) => v.includes(FONTAWESOME_ICON_PREFIX);
 export const getFontAwesomeIconName = (v: string) => {
@@ -300,7 +308,7 @@ export const updateIconsInTsFile = (to: string, icons: string[]) => {
   const members = [
     ...classDecl.members.filter(x => ts.isPropertyDeclaration(x) && !icons.some(i => getMemberNameFromIcon(i) === getMemberNameFromIcon(x.name.getText()))),
     ...icons.map(x => ts.factory.createPropertyDeclaration(
-      [ts.factory.createModifier(ts.SyntaxKind.PublicKeyword)],
+      [ts.factory.createModifier(ts.SyntaxKind.PublicKeyword), ts.factory.createModifier(ts.SyntaxKind.ReadonlyKeyword)],
       getMemberNameFromIcon(x),
       undefined,
       ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
@@ -310,7 +318,7 @@ export const updateIconsInTsFile = (to: string, icons: string[]) => {
   // icons.map(x => ts.factory.createEnumMember(kebabCase(x), ts.factory.createStringLiteral(x, true)))
   classDecl = ts.factory.updateClassDeclaration(classDecl, classDecl.modifiers, classDecl.name, classDecl.typeParameters, classDecl.heritageClauses, members);
   const updatedFile = ts.factory.updateSourceFile(file,
-    [...file.statements.filter(x => !(ts.isClassDeclaration(x) && x.name?.getText() === STORAGE_NAME)), classDecl],
+    [...file.statements.filter(x => !(ts.isClassDeclaration(x) && x.name?.getText() === classDecl?.name?.getText())), classDecl],
   );
 
   saveTsFile(updatedFile, to);
