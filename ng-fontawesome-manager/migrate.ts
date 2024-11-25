@@ -1,4 +1,4 @@
-import {FileHandler, isHtml, isTs, Options} from './utils';
+import { FileHandler, isHtml, isTs, Options } from './utils';
 import { HtmlHandler } from './html-handler';
 import { TsHandler } from './ts-handler';
 

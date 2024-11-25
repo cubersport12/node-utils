@@ -25,7 +25,7 @@ export enum CommandType {
 export const FONTAWESOME_ICON_PREFIX = 'fa-';
 export const FONTAWESOME_TYPE_PREFIX = 'far';
 export const STORAGE_NAME = 'MirIcons';
-export const FIELD_ICONS_NAME = 'icons';
+export const FIELD_ICONS_NAME = '_icons';
 
 export const isHtml = (file: string) => extname(file) === '.html';
 export const isTs = (file: string) => extname(file) === '.ts';
@@ -66,7 +66,11 @@ export const findComponentClass = (source: ts.SourceFile): ts.ClassDeclaration |
       const modifiers = node.modifiers;
       const componentDecorator = modifiers?.find(x => ts.isDecorator(x));
 
-      if (componentDecorator != null) {
+      if (/[Pipe|Component|Injectable]/g.test(componentDecorator?.getText() ?? '')) {
+        klass = node;
+      }
+
+      /* if (componentDecorator != null) {
         const args = componentDecorator.expression;
         if (ts.isCallExpression(args)) {
           args.arguments.forEach((a) => {
@@ -87,7 +91,7 @@ export const findComponentClass = (source: ts.SourceFile): ts.ClassDeclaration |
             }
           });
         }
-      }
+      } */
     }
   });
 

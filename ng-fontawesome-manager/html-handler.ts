@@ -59,7 +59,7 @@ export class HtmlHandler implements FileHandler {
           const p = this._processStringContainsIcon(valueWithoutQuotes);
           const newValue = r.replace(valueWithoutQuotes, p.value);
           fileText = fileText.replace(r, newValue);
-          p.icons.forEach(i => iconsList.add(i));
+          p.icons.forEach(i => iconsList.add(i.replace(/["']/gm, '')));
         }
       });
     if (iconsList.size > 0) {

@@ -13,6 +13,9 @@ import ts, { ScriptKind } from 'typescript';
 export class TsHandler implements FileHandler {
   handle(file: string, options: Options): void {
     const sourceFile = parseTsFile(file);
+    if (file === options.file) {
+      return;
+    }
     sourceFile.forEachChild((node) => {
       if (ts.isClassDeclaration(node)) {
         const modifiers = node.modifiers;
@@ -27,10 +30,16 @@ export class TsHandler implements FileHandler {
             result.split(/('far fa-.*')/gm).forEach((str) => {
               if (hasFontAwesome(str)) {
                 const r = RegExp(String.raw`${str}`, 'g');
-                const icon = str.replace(FONTAWESOME_TYPE_PREFIX, '').trim();
-                result = result.replace(r, `this.${FIELD_ICONS_NAME}.${getMemberNameFromIcon(icon)}`);
+
+                const icon = str.match(/\bfa[\w-]*/g)?.join(' ').trim() ?? '';
+                let replaceTo = `this.${FIELD_ICONS_NAME}.${getMemberNameFromIcon(icon)}`;
+                const matched = str.match(/(?:^|\s)(?!fa)([\w-]+)/gm);
+                if (matched?.length) {
+                  replaceTo = `${replaceTo} + ' ${matched.join(' ')}'`;
+                }
+                result = result.replace(r, replaceTo);
                 hasChanges = true;
-                icons.add(icon.replace('\'', '').trim());
+                icons.add(icon);
               }
             });
             if (hasChanges) {
